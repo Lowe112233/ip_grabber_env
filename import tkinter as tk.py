@@ -28,7 +28,7 @@ def get_location():
         return
     
     try:
-        response = requests.get(f"https://api.ipgeolocationfree.com/v1/publicip?apiKey=7b7859cd4ad34e25b76f1a41d1b32f7b")
+        response = requests.get(f"https://api.ipgeolocationfree.com/v1/publicip?apiKey=YOUR_API_KEY")
         data = response.json()
         
         lat = data["latitude"]
