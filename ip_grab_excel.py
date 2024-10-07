@@ -1,3 +1,4 @@
+import socket
 import tkinter as tk
 from tkinter import messagebox
 import requests
@@ -6,6 +7,7 @@ import os
 import webbrowser
 from ipwhois import IPWhois
 from openpyxl import Workbook, load_workbook
+from datetime import datetime
 import os.path
 
 # Function to get ISP and ASN information
@@ -28,9 +30,25 @@ def get_ip_location(ip):
         messagebox.showerror("Error", f"Could not retrieve data: {e}")
         return None
 
+# Function to scan ports (basic scan for common ports)
+def scan_ports(ip, ports=[80, 443, 22, 21, 25, 8080]):
+    open_ports = []
+    for port in ports:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(1)
+        result = sock.connect_ex((ip, port))  # 0 means open
+        if result == 0:
+            open_ports.append(port)
+        sock.close()
+    return open_ports
+
 # Function to append data to Excel file
-def append_to_excel(ip, location_name, isp, asn):
+def append_to_excel(ip, location_name, isp, asn, open_ports):
     excel_file = 'ip_data.xlsx'
+
+    # Get the current date and time
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d %H:%M:%S")  # Format: Year-Month-Day Hour:Minute:Second
 
     # Check if the file already exists
     if os.path.exists(excel_file):
@@ -40,16 +58,16 @@ def append_to_excel(ip, location_name, isp, asn):
         workbook = Workbook()
         sheet = workbook.active
         # Add header row if creating a new file
-        sheet.append(["IP Address", "Location", "ISP", "ASN"])
+        sheet.append(["IP Address", "Location", "ISP", "ASN", "Open Ports", "Date & Time"])
 
-    # Append new data
-    sheet.append([ip, location_name, isp, asn])
+    # Append new data with timestamp and open ports
+    sheet.append([ip, location_name, isp, asn, ", ".join(map(str, open_ports)), timestamp])
 
     # Save the workbook
     workbook.save(excel_file)
     messagebox.showinfo("Excel Update", f"Data added to {excel_file}")
 
-# Function to show map and display ISP/ASN information
+# Function to show map, perform port scan, and display ISP/ASN information
 def show_map():
     ip = entry.get()
     location_data = get_ip_location(ip)
@@ -62,11 +80,14 @@ def show_map():
         lon = location_data['lon']
         location_name = location_data['city'] + ', ' + location_data['country']
 
-        # Display ISP and ASN information
-        messagebox.showinfo("IP Information", f"IP: {ip}\nLocation: {location_name}\nISP: {isp}\nASN: {asn}")
+        # Perform a port scan
+        open_ports = scan_ports(ip)
 
-        # Append results to Excel spreadsheet
-        append_to_excel(ip, location_name, isp, asn)
+        # Display ISP, ASN, and port scan information
+        messagebox.showinfo("IP Information", f"IP: {ip}\nLocation: {location_name}\nISP: {isp}\nASN: {asn}\nOpen Ports: {', '.join(map(str, open_ports))}")
+
+        # Append results to Excel spreadsheet with timestamp and open ports
+        append_to_excel(ip, location_name, isp, asn, open_ports)
 
         # Create a map centered around the IP's location
         map_ = folium.Map(location=[lat, lon], zoom_start=10)
