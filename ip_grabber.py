@@ -1,51 +1,53 @@
 import tkinter as tk
 from tkinter import messagebox
-import webbrowser
 import requests
+import folium
+import os
 
-def get_map():
-    ip_address = ip_entry.get()
-    if not ip_address:
-        messagebox.showerror("Error", "Please enter a valid IP address")
-        return
-    
-    api_url = f"https://nominatim.openstreetmap.org/search?q={ip_address}&format=json"
-    
-    response = requests.get(api_url)
-    data = response.json()[0]
-    
-    map_url = f"http://maps.google.com/maps?api=s2&center={data['lat']},{data['lon']}&zoom=12&output=embed"
-    
-    webbrowser.open(map_url)
+def get_ip_location(ip):
+    try:
+        response = requests.get(f'http://ip-api.com/json/{ip}')
+        return response.json()
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not retrieve data: {e}")
+        return None
 
-def get_location():
-    ip_address = ip_entry.get()
-    if not ip_address:
-        messagebox.showerror("Error", "Please enter a valid IP address")
-        return
-    
-    api_url = f"https://api.ipgeolocationfree.com/v1/publicip?apiKey=YOUR_API_KEY"
-    
-    response = requests.get(api_url)
-    data = response.json()
-    location = data["latitude"] + "," + data["longitude"]
-    
-    map_url = f"http://maps.google.com/maps?api=s2&center={location}&zoom=12&output=embed"
-    
-    webbrowser.open(map_url)
+def show_map():
+    ip = entry.get()
+    location_data = get_ip_location(ip)
 
+    if location_data and location_data['status'] == 'success':
+        lat = location_data['lat']
+        lon = location_data['lon']
+        location_name = location_data['city'] + ', ' + location_data['country']
+
+        # Create a map centered around the IP's location
+        map_ = folium.Map(location=[lat, lon], zoom_start=10)
+        folium.Marker([lat, lon], tooltip=location_name).add_to(map_)
+        
+        # Save the map to an HTML file
+        map_file = 'ip_location_map.html'
+        map_.save(map_file)
+
+        # Open the map in the default web browser
+        os.startfile(map_file)
+    else:
+        messagebox.showerror("Error", "Invalid IP address or unable to retrieve location.")
+
+# Create the main window
 root = tk.Tk()
-root.title("IP Address to Google Maps")
+root.title("IP Address Locator")
 
-ip_label = tk.Label(root, text="Enter IP Address:")
-ip_label.grid(row=0, column=0, padx=10, pady=10)
-ip_entry = tk.Entry(root, width=40)
-ip_entry.grid(row=0, column=1, padx=10, pady=10)
+# Create and place the entry widget
+label = tk.Label(root, text="Enter IP Address:")
+label.pack(pady=10)
 
-map_button = tk.Button(root, text="Open Google Maps", command=get_map)
-map_button.grid(row=1, column=0, columnspan=2, padx=10, pady=10)
+entry = tk.Entry(root, width=30)
+entry.pack(pady=10)
 
-location_button = tk.Button(root, text="Get Location", command=get_location)
-location_button.grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+# Create and place the button
+button = tk.Button(root, text="Show Location on Map", command=show_map)
+button.pack(pady=20)
 
+# Run the application
 root.mainloop()
